@@ -1,0 +1,687 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VATGuard \u2013 VAT Fraud Detection Platform",
+    "description": "Real-time VAT monitoring and fraud detection platform for tax authorities.\n\nProcesses electronic invoice data and VAT-registered taxpayer data to detect\nand prevent VAT fraud including MTIC, carousel, invoice mill, refund fraud,\nand contra-trading schemes.\n\nIntegrates with Tax Management Systems, Customs Management Systems,\nand Financial Intelligence Units.\n\n**Fraud types covered** (per IMF WP/07/31 and IMF HTN 2023/001):\n- Missing Trader Intra-Community (MTIC)\n- Carousel Fraud\n- Contra-Trading\n- Invoice Mill / Bogus Trader\n- VAT Refund Fraud / Phantom Exporter\n- Benford\u2019s Law invoice fabrication detection\n- Network / graph anomaly detection",
+    "version": "1.0.0",
+    "contact": {
+      "name": "VATGuard Support",
+      "email": "support@vatguard.gov"
+    },
+    "license": {
+      "name": "Proprietary \u2013 Tax Authority Use Only"
+    }
+  },
+  "servers": [
+    { "url": "https://api.vatguard.gov", "description": "Production" },
+    { "url": "https://staging.vatguard.gov", "description": "Staging" },
+    { "url": "http://localhost:8000", "description": "Local development" }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Platform health and status" },
+    { "name": "Taxpayers", "description": "VAT-registered taxpayer management and risk assessment" },
+    { "name": "Invoices", "description": "E-invoice submission, batch processing, and matching" },
+    { "name": "Alerts", "description": "Fraud alert management and escalation" },
+    { "name": "Cases", "description": "Formal investigation case management" },
+    { "name": "Analytics", "description": "Dashboard, VAT gap, Benford analysis, risk heatmap" },
+    { "name": "Integrations", "description": "TMS, Customs, FIU integration and webhooks" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Platform health check",
+        "operationId": "health_check",
+        "responses": {
+          "200": {
+            "description": "Platform is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "healthy" },
+                    "platform": { "type": "string", "example": "VATGuard" },
+                    "version": { "type": "string", "example": "1.0.0" },
+                    "environment": { "type": "string", "example": "production" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxpayers/": {
+      "get": {
+        "tags": ["Taxpayers"],
+        "summary": "List taxpayers",
+        "description": "List VAT-registered taxpayers with optional filters. Results ordered by risk score descending.",
+        "operationId": "list_taxpayers",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/TaxpayerStatus" } },
+          { "name": "country_code", "in": "query", "schema": { "type": "string", "maxLength": 3 } },
+          { "name": "min_risk_score", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 100 } },
+          { "name": "search", "in": "query", "description": "Search by name, TIN, or VAT number", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 500 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of taxpayers",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TaxpayerSummary" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Taxpayers"],
+        "summary": "Register new taxpayer",
+        "operationId": "create_taxpayer",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaxpayerCreate" } } }
+        },
+        "responses": {
+          "201": { "description": "Taxpayer created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaxpayerResponse" } } } },
+          "409": { "description": "Duplicate TIN or VAT number" }
+        }
+      }
+    },
+    "/api/v1/taxpayers/{tin}": {
+      "get": {
+        "tags": ["Taxpayers"],
+        "summary": "Get taxpayer by TIN",
+        "operationId": "get_taxpayer",
+        "parameters": [{ "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Taxpayer details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaxpayerResponse" } } } },
+          "404": { "description": "Taxpayer not found" }
+        }
+      },
+      "patch": {
+        "tags": ["Taxpayers"],
+        "summary": "Update taxpayer",
+        "operationId": "update_taxpayer",
+        "parameters": [{ "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaxpayerUpdate" } } } },
+        "responses": { "200": { "description": "Updated taxpayer" } }
+      }
+    },
+    "/api/v1/taxpayers/{tin}/assess-risk": {
+      "post": {
+        "tags": ["Taxpayers"],
+        "summary": "Trigger full fraud risk assessment",
+        "description": "Runs all detection rules, ML models (Isolation Forest, Benford's Law), and graph analytics against the taxpayer. Persists generated alerts. Updates composite risk score.",
+        "operationId": "assess_risk",
+        "parameters": [{ "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Risk assessment result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TaxpayerRiskSummary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxpayers/{tin}/network": {
+      "get": {
+        "tags": ["Taxpayers"],
+        "summary": "Transaction network graph",
+        "description": "Returns the directed transaction network graph centred on this taxpayer for visualisation. Includes detected cycles, centrality scores, and suspicious nodes.",
+        "operationId": "get_transaction_network",
+        "parameters": [
+          { "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "depth", "in": "query", "schema": { "type": "integer", "default": 2, "minimum": 1, "maximum": 3 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Network analysis result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NetworkResult" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/": {
+      "get": {
+        "tags": ["Invoices"],
+        "summary": "List invoices",
+        "operationId": "list_invoices",
+        "parameters": [
+          { "name": "seller_tin", "in": "query", "schema": { "type": "string" } },
+          { "name": "buyer_tin", "in": "query", "schema": { "type": "string" } },
+          { "name": "is_suspicious", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "invoice_type", "in": "query", "schema": { "type": "string" } },
+          { "name": "period", "in": "query", "schema": { "type": "string", "example": "2024-03" } },
+          { "name": "min_risk_score", "in": "query", "schema": { "type": "number", "minimum": 0, "maximum": 100 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": { "200": { "description": "Invoice list" } }
+      },
+      "post": {
+        "tags": ["Invoices"],
+        "summary": "Submit single e-invoice",
+        "description": "Submit a single electronic invoice for real-time processing and risk assessment. Triggers background fraud analysis.",
+        "operationId": "submit_invoice",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceCreate" } } }
+        },
+        "responses": {
+          "201": { "description": "Invoice accepted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/invoices/batch": {
+      "post": {
+        "tags": ["Invoices"],
+        "summary": "Bulk submit e-invoices",
+        "description": "Submit up to 5,000 invoices per request. Processing is asynchronous.",
+        "operationId": "submit_invoices_batch",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceBatchSubmit" } } }
+        },
+        "responses": {
+          "202": { "description": "Batch accepted for processing" }
+        }
+      }
+    },
+    "/api/v1/invoices/match": {
+      "post": {
+        "tags": ["Invoices"],
+        "summary": "Real-time invoice matching",
+        "description": "Match invoices between a seller and buyer for a filing period. Returns suspicious / unmatched results only.\n\nDetects:\n- BUYER_ONLY: input VAT claimed by buyer with no seller declaration (phantom VAT credit)\n- SELLER_ONLY: seller declared but no buyer claim\n- AMOUNT_MISMATCH: differing amounts between parties\n- DUPLICATE: multiple submissions of same invoice",
+        "operationId": "match_invoices",
+        "parameters": [
+          { "name": "seller_tin", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "buyer_tin", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "period", "in": "query", "required": true, "schema": { "type": "string", "example": "2024-03" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suspicious match results",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/MatchResult" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts/": {
+      "get": {
+        "tags": ["Alerts"],
+        "summary": "List alerts",
+        "description": "List fraud alerts ordered by risk score. Supports filtering by fraud type, severity, status, and taxpayer.",
+        "operationId": "list_alerts",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/AlertStatus" } },
+          { "name": "severity", "in": "query", "schema": { "$ref": "#/components/schemas/AlertSeverity" } },
+          { "name": "fraud_type", "in": "query", "schema": { "$ref": "#/components/schemas/FraudType" } },
+          { "name": "taxpayer_tin", "in": "query", "schema": { "type": "string" } },
+          { "name": "min_risk_score", "in": "query", "schema": { "type": "number" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Alert list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AlertSummary" } } } } } }
+      }
+    },
+    "/api/v1/alerts/stats": {
+      "get": {
+        "tags": ["Alerts"],
+        "summary": "Alert dashboard statistics",
+        "description": "Returns KPI counts by status, severity, and fraud type. Includes total revenue at risk for open/under-review alerts.",
+        "operationId": "get_alert_stats",
+        "responses": { "200": { "description": "Alert statistics", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlertStats" } } } } }
+      }
+    },
+    "/api/v1/alerts/{alert_id}": {
+      "get": {
+        "tags": ["Alerts"],
+        "summary": "Get alert by ID",
+        "operationId": "get_alert",
+        "parameters": [{ "name": "alert_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Alert details" } }
+      },
+      "patch": {
+        "tags": ["Alerts"],
+        "summary": "Update alert",
+        "description": "Update status, assignment, or resolution notes. Auto-sets resolved_at when status is RESOLVED/FALSE_POSITIVE/CONFIRMED_FRAUD.",
+        "operationId": "update_alert",
+        "parameters": [{ "name": "alert_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlertUpdate" } } } },
+        "responses": { "200": { "description": "Updated alert" } }
+      }
+    },
+    "/api/v1/alerts/{alert_id}/escalate": {
+      "post": {
+        "tags": ["Alerts"],
+        "summary": "Escalate alert to formal case",
+        "description": "Creates a formal investigation Case linked to this alert. Alert status becomes ESCALATED.",
+        "operationId": "escalate_alert",
+        "parameters": [
+          { "name": "alert_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "reason", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Alert escalated, case created" } }
+      }
+    },
+    "/api/v1/cases/": {
+      "get": { "tags": ["Cases"], "summary": "List investigation cases", "operationId": "list_cases", "responses": { "200": { "description": "Case list" } } },
+      "post": {
+        "tags": ["Cases"],
+        "summary": "Create investigation case",
+        "operationId": "create_case",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CaseCreate" } } } },
+        "responses": { "201": { "description": "Case created" } }
+      }
+    },
+    "/api/v1/analytics/dashboard": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Executive KPI dashboard",
+        "description": "High-level dashboard for tax authority management. Returns taxpayer counts by risk level, open alerts, revenue at risk, case outcomes, invoice suspicious rate, and top fraud types.",
+        "operationId": "get_dashboard",
+        "responses": { "200": { "description": "Dashboard KPIs", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DashboardResponse" } } } } }
+      }
+    },
+    "/api/v1/analytics/vat-gap": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "VAT gap analysis",
+        "description": "Estimate the VAT gap for a given period by comparing declared output VAT (from returns) against VAT implied by matched invoice data. Also reports unmatched input VAT claims.",
+        "operationId": "vat_gap_analysis",
+        "parameters": [{ "name": "period", "in": "query", "required": true, "schema": { "type": "string", "example": "2024-03" } }],
+        "responses": { "200": { "description": "VAT gap estimate", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VatGapResponse" } } } } }
+      }
+    },
+    "/api/v1/analytics/benford/{tin}": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Benford's Law analysis",
+        "description": "Applies a chi-squared goodness-of-fit test against Benford's Law on all invoices issued by a taxpayer. Significant deviation indicates possible invoice fabrication.",
+        "operationId": "benford_analysis",
+        "parameters": [
+          { "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "period", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Benford analysis result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BenfordResponse" } } } } }
+      }
+    },
+    "/api/v1/analytics/risk-heatmap": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Risk heatmap by industry sector",
+        "description": "Returns average and maximum risk scores grouped by industry code and country for choropleth visualisation.",
+        "operationId": "get_risk_heatmap",
+        "parameters": [{ "name": "country_code", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Heatmap data" } }
+      }
+    },
+    "/api/v1/analytics/top-risk-taxpayers": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Top risk taxpayer list",
+        "description": "Returns the highest-risk taxpayers for prioritised audit selection.",
+        "operationId": "top_risk_taxpayers",
+        "parameters": [{ "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }],
+        "responses": { "200": { "description": "Top risk taxpayers" } }
+      }
+    },
+    "/api/v1/integrations/tms/sync-taxpayer/{tin}": {
+      "post": {
+        "tags": ["Integrations"],
+        "summary": "Sync taxpayer from Tax Management System",
+        "operationId": "sync_taxpayer_from_tms",
+        "parameters": [{ "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Sync queued" } }
+      }
+    },
+    "/api/v1/integrations/customs/verify-export/{invoice_id}": {
+      "post": {
+        "tags": ["Integrations"],
+        "summary": "Verify export invoice with Customs",
+        "operationId": "verify_export_with_customs",
+        "parameters": [{ "name": "invoice_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Verification queued" } }
+      }
+    },
+    "/api/v1/integrations/fiu/report-suspicious-entity/{tin}": {
+      "post": {
+        "tags": ["Integrations"],
+        "summary": "File SAR with Financial Intelligence Unit",
+        "description": "Submit a Suspicious Activity Report (SAR) to the FIU for AML investigation.",
+        "operationId": "report_to_fiu",
+        "parameters": [
+          { "name": "tin", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "reason", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "SAR submitted" } }
+      }
+    },
+    "/api/v1/integrations/webhook/invoice-submitted": {
+      "post": {
+        "tags": ["Integrations"],
+        "summary": "Webhook: receive e-invoice",
+        "description": "Endpoint for external ERP systems, accounting platforms, and government e-invoice portals to push invoices in real time.",
+        "operationId": "receive_invoice_webhook",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceCreate" } } } },
+        "responses": { "200": { "description": "Invoice accepted" } }
+      }
+    },
+    "/api/v1/integrations/webhook/taxpayer-updated": {
+      "post": {
+        "tags": ["Integrations"],
+        "summary": "Webhook: taxpayer status change",
+        "description": "Receive taxpayer deregistration, suspension, or status changes from TMS. Triggers immediate risk re-assessment.",
+        "operationId": "receive_taxpayer_update_webhook",
+        "responses": { "200": { "description": "Update processed" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TaxpayerStatus": {
+        "type": "string",
+        "enum": ["active", "suspended", "deregistered", "under_investigation", "missing"],
+        "description": "Current VAT registration status"
+      },
+      "BusinessType": {
+        "type": "string",
+        "enum": ["sole_proprietor", "partnership", "limited_liability", "public_company", "branch", "cooperative", "non_profit"]
+      },
+      "TaxpayerCreate": {
+        "type": "object",
+        "required": ["tin", "vat_number", "name"],
+        "properties": {
+          "tin": { "type": "string", "description": "Tax Identification Number", "example": "TIN-2024-001234" },
+          "vat_number": { "type": "string", "example": "VAT-GB-123456789" },
+          "name": { "type": "string", "example": "Acme Trading Ltd" },
+          "trade_name": { "type": "string" },
+          "business_type": { "$ref": "#/components/schemas/BusinessType" },
+          "industry_code": { "type": "string", "example": "4651" },
+          "country_code": { "type": "string", "maxLength": 3, "example": "GBR" },
+          "address": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "vat_registration_date": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TaxpayerUpdate": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/TaxpayerStatus" },
+          "address": { "type": "string" },
+          "annual_turnover_reported": { "type": "number" },
+          "has_foreign_directors": { "type": "boolean" }
+        }
+      },
+      "TaxpayerSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "tin": { "type": "string" },
+          "vat_number": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/TaxpayerStatus" },
+          "risk_score": { "type": "number", "minimum": 0, "maximum": 100, "description": "Composite fraud risk score" },
+          "compliance_score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "country_code": { "type": "string" }
+        }
+      },
+      "TaxpayerResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/TaxpayerSummary" },
+          {
+            "type": "object",
+            "properties": {
+              "consecutive_late_filings": { "type": "integer" },
+              "total_alerts": { "type": "integer" },
+              "total_open_cases": { "type": "integer" },
+              "last_risk_assessment": { "type": "string", "format": "date-time" },
+              "last_filing_date": { "type": "string", "format": "date-time" },
+              "is_newly_registered": { "type": "boolean" },
+              "is_frequent_refund_claimant": { "type": "boolean" },
+              "has_foreign_directors": { "type": "boolean" }
+            }
+          }
+        ]
+      },
+      "TaxpayerRiskSummary": {
+        "type": "object",
+        "properties": {
+          "tin": { "type": "string" },
+          "vat_number": { "type": "string" },
+          "name": { "type": "string" },
+          "risk_score": { "type": "number", "example": 82.5 },
+          "risk_level": { "type": "string", "enum": ["low", "medium", "high", "critical"], "example": "high" },
+          "top_risk_factors": { "type": "array", "items": { "type": "string" } },
+          "component_scores": { "type": "object", "additionalProperties": { "type": "number" } },
+          "total_alerts": { "type": "integer" }
+        }
+      },
+      "NetworkResult": {
+        "type": "object",
+        "properties": {
+          "tin": { "type": "string" },
+          "node_count": { "type": "integer" },
+          "edge_count": { "type": "integer" },
+          "cycle_count": { "type": "integer", "description": "Number of detected circular transaction chains" },
+          "risk_score": { "type": "number" },
+          "suspicious_nodes": { "type": "array", "items": { "type": "string" }, "description": "TINs with high betweenness centrality (buffer traders)" },
+          "cycles": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+          "summary": { "type": "string" }
+        }
+      },
+      "InvoiceType": {
+        "type": "string",
+        "enum": ["standard", "export", "import", "intra_community", "credit_note", "debit_note", "advance", "self_billed"]
+      },
+      "InvoiceCreate": {
+        "type": "object",
+        "required": ["invoice_number", "seller_tin", "seller_vat_number", "seller_country", "invoice_date", "net_amount", "vat_amount", "gross_amount", "vat_rate"],
+        "properties": {
+          "invoice_number": { "type": "string", "example": "INV-2024-00123" },
+          "seller_tin": { "type": "string" },
+          "buyer_tin": { "type": "string" },
+          "seller_vat_number": { "type": "string" },
+          "buyer_vat_number": { "type": "string" },
+          "seller_country": { "type": "string", "maxLength": 3 },
+          "buyer_country": { "type": "string", "maxLength": 3 },
+          "invoice_type": { "$ref": "#/components/schemas/InvoiceType" },
+          "invoice_date": { "type": "string", "format": "date-time" },
+          "currency": { "type": "string", "default": "USD" },
+          "net_amount": { "type": "number", "minimum": 0 },
+          "vat_amount": { "type": "number", "minimum": 0 },
+          "gross_amount": { "type": "number", "minimum": 0 },
+          "vat_rate": { "type": "number", "minimum": 0, "maximum": 1, "example": 0.2 },
+          "commodity_code": { "type": "string", "description": "HS tariff code", "example": "851712" },
+          "customs_declaration_number": { "type": "string" }
+        }
+      },
+      "InvoiceBatchSubmit": {
+        "type": "object",
+        "required": ["invoices"],
+        "properties": {
+          "invoices": { "type": "array", "items": { "$ref": "#/components/schemas/InvoiceCreate" }, "minItems": 1, "maxItems": 5000 },
+          "source_system": { "type": "string" },
+          "submission_reference": { "type": "string" }
+        }
+      },
+      "InvoiceResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/InvoiceCreate" },
+          {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "status": { "type": "string" },
+              "risk_score": { "type": "number" },
+              "is_suspicious": { "type": "boolean" },
+              "fraud_indicators": { "type": "object" },
+              "declared_by_seller": { "type": "boolean" },
+              "declared_by_buyer": { "type": "boolean" },
+              "submission_date": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
+      },
+      "MatchResult": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["matched", "seller_only", "buyer_only", "amount_mismatch", "duplicate", "partial_match"] },
+          "seller_tin": { "type": "string" },
+          "buyer_tin": { "type": "string" },
+          "invoice_number": { "type": "string" },
+          "seller_vat_amount": { "type": "number" },
+          "buyer_vat_amount": { "type": "number" },
+          "discrepancy": { "type": "number" },
+          "discrepancy_pct": { "type": "number" },
+          "risk_score": { "type": "number" },
+          "flags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "FraudType": {
+        "type": "string",
+        "enum": ["missing_trader", "carousel_fraud", "contra_trading", "invoice_mill", "bogus_trader", "refund_fraud", "acquisition_fraud", "under_declaration", "suppressed_sales", "phantom_exporter", "identity_theft", "split_transactions", "benford_anomaly", "network_anomaly", "late_registration", "other"]
+      },
+      "AlertSeverity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+      "AlertStatus": { "type": "string", "enum": ["open", "under_review", "escalated", "resolved", "false_positive", "confirmed_fraud"] },
+      "AlertSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "fraud_type": { "$ref": "#/components/schemas/FraudType" },
+          "severity": { "$ref": "#/components/schemas/AlertSeverity" },
+          "status": { "$ref": "#/components/schemas/AlertStatus" },
+          "title": { "type": "string" },
+          "risk_score": { "type": "number" },
+          "taxpayer_tin": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AlertUpdate": {
+        "type": "object",
+        "properties": {
+          "status": { "$ref": "#/components/schemas/AlertStatus" },
+          "assigned_to": { "type": "string" },
+          "resolution_notes": { "type": "string" }
+        }
+      },
+      "AlertStats": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer" },
+          "open": { "type": "integer" },
+          "under_review": { "type": "integer" },
+          "confirmed_fraud": { "type": "integer" },
+          "false_positive": { "type": "integer" },
+          "by_severity": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "by_fraud_type": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "total_revenue_at_risk": { "type": "number" }
+        }
+      },
+      "CaseCreate": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "taxpayer_tin": { "type": "string" },
+          "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+          "fraud_types": { "type": "array", "items": { "type": "string" } },
+          "estimated_revenue_at_risk": { "type": "number" },
+          "assigned_to": { "type": "string" }
+        }
+      },
+      "DashboardResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "taxpayers": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "active": { "type": "integer" },
+              "high_risk": { "type": "integer" },
+              "critical_risk": { "type": "integer" }
+            }
+          },
+          "alerts": {
+            "type": "object",
+            "properties": {
+              "open": { "type": "integer" },
+              "critical_open": { "type": "integer" },
+              "total_revenue_at_risk": { "type": "number" }
+            }
+          },
+          "cases": {
+            "type": "object",
+            "properties": {
+              "open": { "type": "integer" },
+              "confirmed_fraud_cases": { "type": "integer" },
+              "total_recovered": { "type": "number" }
+            }
+          },
+          "invoices_last_30d": {
+            "type": "object",
+            "properties": {
+              "total_received": { "type": "integer" },
+              "suspicious": { "type": "integer" },
+              "suspicious_rate": { "type": "number" }
+            }
+          },
+          "top_fraud_types": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fraud_type": { "type": "string" },
+                "count": { "type": "integer" }
+              }
+            }
+          }
+        }
+      },
+      "VatGapResponse": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string" },
+          "declared_output_vat": { "type": "number" },
+          "invoice_implied_vat": { "type": "number" },
+          "unmatched_input_vat_claims": { "type": "number" },
+          "estimated_vat_gap": { "type": "number" },
+          "estimated_gap_pct": { "type": "number" },
+          "interpretation": { "type": "string" }
+        }
+      },
+      "BenfordResponse": {
+        "type": "object",
+        "properties": {
+          "tin": { "type": "string" },
+          "period": { "type": "string" },
+          "sample_size": { "type": "integer" },
+          "chi2_statistic": { "type": "number" },
+          "p_value": { "type": "number" },
+          "is_suspicious": { "type": "boolean" },
+          "mean_absolute_deviation": { "type": "number" },
+          "observed_frequencies": { "type": "object", "additionalProperties": { "type": "number" } },
+          "expected_frequencies": { "type": "object", "additionalProperties": { "type": "number" } },
+          "interpretation": { "type": "string" }
+        }
+      }
+    }
+  }
+}

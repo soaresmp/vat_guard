@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VATGuard – VAT Fraud Detection Platform</title>
+  <meta name="description" content="Real-time VAT monitoring and fraud detection platform for tax authorities. Detects MTIC, carousel fraud, refund fraud, and more." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="#">
+      <span class="shield">🛡️</span>
+      <span>VAT<strong>Guard</strong></span>
+    </a>
+    <div class="nav-links">
+      <a href="#fraud-types">Fraud Types</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#api">API</a>
+      <a href="api.html" class="btn-nav">API Reference →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────────────── -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">For Tax Authorities</div>
+    <h1>Real-Time VAT Fraud<br>Detection &amp; Prevention</h1>
+    <p class="hero-sub">
+      VATGuard processes electronic invoices and taxpayer data to detect Missing Trader,
+      Carousel, Refund, and Invoice Mill fraud — in real time — before revenue is lost.
+    </p>
+    <div class="hero-actions">
+      <a href="api.html" class="btn btn-primary">API Reference</a>
+      <a href="#fraud-types" class="btn btn-ghost">Fraud Types Covered ↓</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-n">8</span><span class="stat-l">Fraud types</span></div>
+      <div class="stat"><span class="stat-n">5</span><span class="stat-l">Detection layers</span></div>
+      <div class="stat"><span class="stat-n">5k</span><span class="stat-l">Invoices/batch</span></div>
+      <div class="stat"><span class="stat-n">0–100</span><span class="stat-l">Risk score</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Fraud Types ───────────────────────────────────────────────────────────── -->
+<section id="fraud-types" class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Fraud Types Detected</h2>
+      <p>Based on IMF Working Paper WP/07/31 and IMF How-To Note 2023/001</p>
+    </div>
+    <div class="fraud-grid">
+
+      <div class="fraud-card severity-critical">
+        <div class="fraud-icon">🕳️</div>
+        <h3>Missing Trader (MTIC)</h3>
+        <p>Trader collects VAT on sales then disappears without remitting to the authority.</p>
+        <ul>
+          <li>Inactive traders after heavy imports</li>
+          <li>Buyer input-VAT claims with no seller declaration</li>
+          <li>Consecutive late/missed filings</li>
+          <li>Never-filed after registration</li>
+        </ul>
+        <div class="imf-ref">IMF WP/07/31 §3.1</div>
+      </div>
+
+      <div class="fraud-card severity-critical">
+        <div class="fraud-icon">🎠</div>
+        <h3>Carousel Fraud</h3>
+        <p>Goods traded in a circular chain across entities to generate false VAT refund claims.</p>
+        <ul>
+          <li>Graph cycle detection (NetworkX)</li>
+          <li>High-risk commodities (phones, CPUs, gold)</li>
+          <li>Rapid resale ≤ 24 hours</li>
+          <li>Cross-border chain involvement</li>
+        </ul>
+        <div class="imf-ref">IMF WP/07/31 §3.2</div>
+      </div>
+
+      <div class="fraud-card severity-high">
+        <div class="fraud-icon">🔄</div>
+        <h3>Contra-Trading</h3>
+        <p>Two parallel chains — one legitimate, one fraudulent — whose VAT liabilities cancel out.</p>
+        <ul>
+          <li>Near-zero net VAT on high gross turnover</li>
+          <li>Trading in 3+ unrelated sectors simultaneously</li>
+          <li>Mirrored buy/sell chain timing</li>
+        </ul>
+        <div class="imf-ref">IMF WP/07/31 §3.3</div>
+      </div>
+
+      <div class="fraud-card severity-high">
+        <div class="fraud-icon">🏭</div>
+        <h3>Invoice Mill / Bogus Trader</h3>
+        <p>Shell company created solely to generate fraudulent invoices for VAT credit claims.</p>
+        <ul>
+          <li>High daily invoice volume (≥ 30/day)</li>
+          <li>Suspiciously round invoice amounts</li>
+          <li>No purchase invoices of their own</li>
+          <li>Benford's Law chi-squared anomaly</li>
+        </ul>
+        <div class="imf-ref">IMF WP/07/31 §3.4</div>
+      </div>
+
+      <div class="fraud-card severity-high">
+        <div class="fraud-icon">💸</div>
+        <h3>VAT Refund Fraud</h3>
+        <p>False or inflated VAT refund claims, often exploiting export zero-rating.</p>
+        <ul>
+          <li>Refund &gt; 80% of output VAT</li>
+          <li>Sudden refund spike vs. history</li>
+          <li>Frequent return amendments</li>
+          <li>Refund from flagged suppliers</li>
+        </ul>
+        <div class="imf-ref">IMF HTN 2023/001</div>
+      </div>
+
+      <div class="fraud-card severity-high">
+        <div class="fraud-icon">👻</div>
+        <h3>Phantom Exporter</h3>
+        <p>Claims export zero-rating for goods that were never physically exported.</p>
+        <ul>
+          <li>Export invoices without customs declarations</li>
+          <li>&gt; 50% of exports lack customs docs</li>
+          <li>Cross-checked via Customs System API</li>
+        </ul>
+        <div class="imf-ref">IMF HTN 2023/001 §4.2</div>
+      </div>
+
+      <div class="fraud-card severity-medium">
+        <div class="fraud-icon">📊</div>
+        <h3>Benford's Law Anomaly</h3>
+        <p>Invoice amounts that don't follow the expected leading-digit frequency distribution — a signature of fabricated figures.</p>
+        <ul>
+          <li>Chi-squared goodness-of-fit test</li>
+          <li>Mean Absolute Deviation (MAD) scoring</li>
+          <li>Weekly automated scan</li>
+        </ul>
+        <div class="imf-ref">Statistical detection</div>
+      </div>
+
+      <div class="fraud-card severity-medium">
+        <div class="fraud-icon">🕸️</div>
+        <h3>Network Anomaly</h3>
+        <p>Suspicious transaction network structures revealing hidden relationships between traders.</p>
+        <ul>
+          <li>Graph betweenness centrality (buffer traders)</li>
+          <li>Strongly connected components</li>
+          <li>Cross-border cluster detection</li>
+        </ul>
+        <div class="imf-ref">Graph analytics</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Architecture ──────────────────────────────────────────────────────────── -->
+<section id="architecture" class="section section-dark">
+  <div class="container">
+    <div class="section-header">
+      <h2>Platform Architecture</h2>
+      <p>Five-layer detection with real-time processing and external system integration</p>
+    </div>
+
+    <div class="arch-diagram">
+      <div class="arch-row arch-users">
+        <div class="arch-box arch-box-user">Tax Analysts</div>
+        <div class="arch-box arch-box-user">Investigators</div>
+        <div class="arch-box arch-box-user">Management</div>
+        <div class="arch-box arch-box-user">Auditors</div>
+      </div>
+      <div class="arch-arrow">↕ REST API / Webhooks</div>
+      <div class="arch-row arch-api">
+        <div class="arch-box arch-box-api arch-wide">
+          <strong>VATGuard FastAPI</strong>
+          <div class="arch-modules">
+            <span>Taxpayers</span><span>Invoices</span><span>Alerts</span><span>Cases</span><span>Analytics</span><span>Integrations</span>
+          </div>
+        </div>
+      </div>
+      <div class="arch-arrow">↕</div>
+      <div class="arch-row arch-detection">
+        <div class="arch-box arch-box-detect">
+          <div class="detect-title">📋 Rule Engine</div>
+          <div class="detect-items">Missing Trader · Carousel · Invoice Mill · Refund Fraud · Contra-Trading</div>
+        </div>
+        <div class="arch-box arch-box-detect">
+          <div class="detect-title">🧠 ML / Stats</div>
+          <div class="detect-items">Isolation Forest · Benford's Law · Z-Score · Risk Scorer</div>
+        </div>
+        <div class="arch-box arch-box-detect">
+          <div class="detect-title">🕸️ Graph Analytics</div>
+          <div class="detect-items">NetworkX · Cycle Detection · Centrality · Circular Chains</div>
+        </div>
+        <div class="arch-box arch-box-detect">
+          <div class="detect-title">⚡ Invoice Matcher</div>
+          <div class="detect-items">Real-time seller↔buyer reconciliation · Phantom VAT</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↕</div>
+      <div class="arch-row arch-integrations">
+        <div class="arch-box arch-box-int">Tax Management System</div>
+        <div class="arch-box arch-box-int">Customs Management</div>
+        <div class="arch-box arch-box-int">Financial Intelligence Unit</div>
+        <div class="arch-box arch-box-int">Business Register</div>
+      </div>
+    </div>
+
+    <!-- Stack pills -->
+    <div class="tech-stack">
+      <h3>Technology Stack</h3>
+      <div class="tech-pills">
+        <span class="pill pill-blue">Python 3.12</span>
+        <span class="pill pill-blue">FastAPI</span>
+        <span class="pill pill-green">PostgreSQL</span>
+        <span class="pill pill-red">Redis</span>
+        <span class="pill pill-orange">Celery</span>
+        <span class="pill pill-purple">NetworkX</span>
+        <span class="pill pill-purple">scikit-learn</span>
+        <span class="pill pill-purple">scipy</span>
+        <span class="pill pill-gray">SQLAlchemy</span>
+        <span class="pill pill-gray">Alembic</span>
+        <span class="pill pill-dark">Docker</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Risk Scoring ──────────────────────────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Composite Risk Score</h2>
+      <p>0–100 score aggregated from five weighted signal sources</p>
+    </div>
+    <div class="score-grid">
+      <div class="score-component">
+        <div class="score-pct">40%</div>
+        <div class="score-label">Rule Detections</div>
+        <div class="score-desc">Weighted average of triggered fraud detection rules × confidence</div>
+      </div>
+      <div class="score-component">
+        <div class="score-pct">20%</div>
+        <div class="score-label">Anomaly Score</div>
+        <div class="score-desc">Isolation Forest multi-dimensional outlier detection</div>
+      </div>
+      <div class="score-component">
+        <div class="score-pct">20%</div>
+        <div class="score-label">Compliance History</div>
+        <div class="score-desc">Filing patterns, late submissions, suspension status</div>
+      </div>
+      <div class="score-component">
+        <div class="score-pct">10%</div>
+        <div class="score-label">Network Centrality</div>
+        <div class="score-desc">Suspicious position in transaction network (buffer trader detection)</div>
+      </div>
+      <div class="score-component">
+        <div class="score-pct">10%</div>
+        <div class="score-label">Third-Party Signals</div>
+        <div class="score-desc">FIU watchlists, customs mismatches, prior convictions</div>
+      </div>
+    </div>
+    <div class="risk-levels">
+      <div class="risk-level rl-low"><span class="rl-badge">Low</span> &lt; 40</div>
+      <div class="risk-level rl-medium"><span class="rl-badge">Medium</span> 40–74</div>
+      <div class="risk-level rl-high"><span class="rl-badge">High</span> 75–89</div>
+      <div class="risk-level rl-critical"><span class="rl-badge">Critical</span> ≥ 90</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── API Quick-ref ─────────────────────────────────────────────────────────── -->
+<section id="api" class="section section-dark">
+  <div class="container">
+    <div class="section-header">
+      <h2>API Quick Reference</h2>
+      <p>RESTful JSON API — full interactive docs available</p>
+    </div>
+    <div class="endpoint-groups">
+
+      <div class="endpoint-group">
+        <h3>🏢 Taxpayers</h3>
+        <div class="endpoints">
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/taxpayers/</code> <span>List with risk score filtering</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/taxpayers/</code> <span>Register new taxpayer</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/taxpayers/{tin}/assess-risk</code> <span>Full fraud analysis</span></div>
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/taxpayers/{tin}/network</code> <span>Transaction network graph</span></div>
+        </div>
+      </div>
+
+      <div class="endpoint-group">
+        <h3>🧾 Invoices</h3>
+        <div class="endpoints">
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/invoices/</code> <span>Submit single e-invoice (real-time)</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/invoices/batch</code> <span>Bulk submit up to 5,000</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/invoices/match</code> <span>Real-time buyer/seller matching</span></div>
+        </div>
+      </div>
+
+      <div class="endpoint-group">
+        <h3>🚨 Alerts</h3>
+        <div class="endpoints">
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/alerts/</code> <span>List with fraud type / severity filters</span></div>
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/alerts/stats</code> <span>Dashboard KPIs &amp; revenue at risk</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/alerts/{id}/escalate</code> <span>Escalate to formal case</span></div>
+        </div>
+      </div>
+
+      <div class="endpoint-group">
+        <h3>📊 Analytics</h3>
+        <div class="endpoints">
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/analytics/dashboard</code> <span>Executive KPI dashboard</span></div>
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/analytics/vat-gap</code> <span>VAT gap estimation by period</span></div>
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/analytics/benford/{tin}</code> <span>Benford's Law analysis</span></div>
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/analytics/risk-heatmap</code> <span>Risk by industry / region</span></div>
+          <div class="ep"><span class="method get">GET</span> <code>/api/v1/analytics/top-risk-taxpayers</code> <span>Prioritised audit list</span></div>
+        </div>
+      </div>
+
+      <div class="endpoint-group">
+        <h3>🔗 Integrations</h3>
+        <div class="endpoints">
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/integrations/tms/sync-taxpayer/{tin}</code> <span>Sync from TMS</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/integrations/customs/verify-export/{id}</code> <span>Verify with Customs</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/integrations/fiu/report-suspicious-entity/{tin}</code> <span>File SAR with FIU</span></div>
+          <div class="ep"><span class="method post">POST</span> <code>/api/v1/integrations/webhook/invoice-submitted</code> <span>E-invoice webhook</span></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="api-cta">
+      <a href="api.html" class="btn btn-primary btn-lg">Open Full API Reference →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Scheduled Tasks ───────────────────────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Automated Scheduled Scans</h2>
+      <p>Celery Beat tasks run continuously in the background</p>
+    </div>
+    <div class="tasks-grid">
+      <div class="task-card">
+        <div class="task-schedule">Every hour</div>
+        <h4>Unmatched Invoice Scan</h4>
+        <p>Flags buyers claiming input VAT with no matching seller declaration older than 30 days.</p>
+      </div>
+      <div class="task-card">
+        <div class="task-schedule">Daily</div>
+        <h4>High-Risk Reassessment</h4>
+        <p>Re-runs full fraud analysis on all taxpayers with risk score ≥ 60.</p>
+      </div>
+      <div class="task-card">
+        <div class="task-schedule">Daily</div>
+        <h4>VAT Gap Calculation</h4>
+        <p>Estimates the VAT gap for the previous month by comparing returns against invoice data.</p>
+      </div>
+      <div class="task-card">
+        <div class="task-schedule">Weekly</div>
+        <h4>Benford's Law Scan</h4>
+        <p>Runs chi-squared test across all high-volume sellers (≥ 30 invoices).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="shield">🛡️</span> VATGuard v1.0.0
+      </div>
+      <div class="footer-links">
+        <a href="api.html">API Reference</a>
+        <a href="https://www.imf.org/external/pubs/ft/wp/2007/wp0731.pdf" target="_blank" rel="noopener">IMF WP/07/31</a>
+        <a href="https://www.imf.org/-/media/files/publications/howtonotes/2023/english/htnea2023001.pdf" target="_blank" rel="noopener">IMF HTN 2023/001</a>
+      </div>
+      <div class="footer-note">For tax authority internal use. Proprietary.</div>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

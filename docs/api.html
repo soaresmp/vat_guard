@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VATGuard API Reference</title>
+  <meta name="description" content="VATGuard – Real-time VAT Fraud Detection Platform. Full API reference for tax authorities." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <style>
+    body { margin: 0; padding: 0; }
+    /* Override ReDoc default to match VATGuard brand */
+    :root {
+      --redoc-primary: #1a56db;
+    }
+  </style>
+</head>
+<body>
+  <redoc spec-url="openapi.json"
+    hide-download-button="false"
+    expand-responses="200,201"
+    path-in-middle-panel="true"
+    theme='{
+      "colors": {
+        "primary": { "main": "#1a56db" },
+        "success": { "main": "#0e9f6e" },
+        "warning": { "main": "#ff5a1f" },
+        "error": { "main": "#e02424" },
+        "text": { "primary": "#111928", "secondary": "#6b7280" },
+        "border": { "dark": "#d1d5db", "light": "#f3f4f6" },
+        "responses": {
+          "success": { "color": "#0e9f6e", "backgroundColor": "#f0fdf4" },
+          "error": { "color": "#e02424", "backgroundColor": "#fff5f5" }
+        }
+      },
+      "typography": {
+        "fontSize": "15px",
+        "fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif",
+        "headings": { "fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif" },
+        "code": { "fontFamily": "ui-monospace, SFMono-Regular, Menlo, monospace", "fontSize": "13px" }
+      },
+      "sidebar": {
+        "width": "280px",
+        "backgroundColor": "#0f172a",
+        "textColor": "#e2e8f0",
+        "activeTextColor": "#60a5fa"
+      },
+      "rightPanel": { "backgroundColor": "#1e293b" },
+      "logo": { "maxHeight": "60px" }
+    }'
+  ></redoc>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>
