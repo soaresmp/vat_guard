@@ -1,0 +1,126 @@
+version: "3.9"
+
+# =============================================================================
+# VATGuard – Full Stack Docker Compose
+# Services: API, Celery Worker, Celery Beat, PostgreSQL, Redis
+# =============================================================================
+
+services:
+
+  # ── PostgreSQL Database ──────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: vatguard_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vatguard
+      POSTGRES_USER: vatguard
+      POSTGRES_PASSWORD: vatguard
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vatguard -d vatguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (Cache + Celery Broker) ────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vatguard_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── VATGuard API ─────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      target: runtime
+    container_name: vatguard_api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vatguard:vatguard@db:5432/vatguard
+      DATABASE_SYNC_URL: postgresql://vatguard:vatguard@db:5432/vatguard
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      APP_ENV: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src        # Live reload in development
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Celery Worker (fraud detection tasks) ───────────────────────────────
+  worker:
+    build:
+      context: .
+      target: runtime
+    container_name: vatguard_worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vatguard:vatguard@db:5432/vatguard
+      DATABASE_SYNC_URL: postgresql://vatguard:vatguard@db:5432/vatguard
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A src.workers.celery_app worker --loglevel=info --concurrency=4
+
+  # ── Celery Beat (scheduled fraud scans) ─────────────────────────────────
+  beat:
+    build:
+      context: .
+      target: runtime
+    container_name: vatguard_beat
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vatguard:vatguard@db:5432/vatguard
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      - worker
+    command: celery -A src.workers.celery_app beat --loglevel=info
+
+  # ── Flower (Celery monitoring UI) ────────────────────────────────────────
+  flower:
+    image: mher/flower:2.0
+    container_name: vatguard_flower
+    restart: unless-stopped
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      FLOWER_PORT: 5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
+    driver: local
