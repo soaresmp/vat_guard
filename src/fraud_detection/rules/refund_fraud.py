@@ -65,7 +65,7 @@ class RefundFraudDetector(BaseDetector):
                     "total_output_vat": total_output_vat,
                     "threshold": self.REFUND_TO_OUTPUT_RATIO_THRESHOLD,
                 }
-                risk_score += min(35, ratio * 30)
+                risk_score += min(40, ratio * 40)
 
         # ── Signal 2: Refund spike vs. historical average ──────────────────────
         if len(refund_transactions) >= 2:
@@ -135,7 +135,7 @@ class RefundFraudDetector(BaseDetector):
                     getattr(a, "refund_claimed", 0) or 0 for a in amendments
                 ),
             }
-            risk_score += min(20, len(amendments) * 5)
+            risk_score += min(35, len(amendments) * 10)
 
         # ── Signal 6: Refund-to-turnover ratio ────────────────────────────────
         if taxpayer.annual_turnover_reported and taxpayer.annual_turnover_reported > 0:

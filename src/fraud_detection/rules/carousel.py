@@ -64,7 +64,7 @@ class CarouselFraudDetector(BaseDetector):
                 "max_cycle_length": max_cycle_len,
                 "cycles": [list(c) for c in cycles[:5]],  # First 5 for evidence
             }
-            risk_score += min(50, len(cycles) * 15 + (max_cycle_len - self.MIN_CHAIN_DEPTH) * 5)
+            risk_score += min(50, len(cycles) * 35 + (max_cycle_len - self.MIN_CHAIN_DEPTH) * 5)
 
         # ── Signal 2: High-risk commodity codes ───────────────────────────────
         high_risk_invoices = [

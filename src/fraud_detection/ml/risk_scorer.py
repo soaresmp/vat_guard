@@ -121,12 +121,18 @@ class TaxpayerRiskScorer:
         breakdown["third_party"] = third_party_flags
 
         # ── Weighted total ────────────────────────────────────────────────────
-        total = sum(
+        # Primary: weighted average captures balanced multi-signal cases.
+        # Secondary: a strong single signal (e.g. confirmed rule detection at 95)
+        # should push the composite score close to that signal's level. We take
+        # the maximum of both approaches so neither very strong individual signals
+        # nor balanced multi-signal cases are under-represented.
+        weighted_avg = sum(
             components[key] * WEIGHTS[key]
             for key in WEIGHTS
             if key in components
         )
-        total = round(min(100.0, total), 2)
+        max_component = max(components.values()) if components else 0.0
+        total = round(min(100.0, max(weighted_avg, max_component * 0.97)), 2)
 
         risk_level = self._classify_risk(total)
         top_factors = self._identify_top_factors(components, breakdown)

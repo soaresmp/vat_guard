@@ -137,7 +137,7 @@ class InvoiceMatcher:
             if discrepancy_pct > self.AMOUNT_TOLERANCE:
                 status = MatchStatus.AMOUNT_MISMATCH
                 flags.append(f"VAT discrepancy: seller={s_vat:.2f}, buyer={b_vat:.2f}")
-            elif getattr(seller_inv, "_duplicate", False) or getattr(buyer_inv, "_duplicate", False):
+            elif getattr(seller_inv, "_duplicate", False) is True or getattr(buyer_inv, "_duplicate", False) is True:
                 status = MatchStatus.DUPLICATE
                 flags.append("Duplicate invoice submission detected")
             else:
@@ -184,6 +184,8 @@ class InvoiceMatcher:
         discrepancy_pct: float,
         vat_amount: float,
     ) -> float:
+        if status == MatchStatus.MATCHED:
+            return 0.0
         base = {
             MatchStatus.MATCHED: 0.0,
             MatchStatus.SELLER_ONLY: 20.0,

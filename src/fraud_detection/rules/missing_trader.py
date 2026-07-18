@@ -49,7 +49,7 @@ class MissingTraderDetector(BaseDetector):
                     "days_since_registration": days_since_reg,
                     "vat_registration_date": str(taxpayer.vat_registration_date),
                 }
-                risk_score += min(40, days_since_reg / 3)
+                risk_score += min(40, days_since_reg / 2)
 
         # ── Signal 2: Long gap since last filing ──────────────────────────────
         if taxpayer.last_filing_date:
@@ -59,7 +59,7 @@ class MissingTraderDetector(BaseDetector):
                     "days_since_last_filing": days_since_last_filing,
                     "last_filing_date": str(taxpayer.last_filing_date),
                 }
-                risk_score += min(35, days_since_last_filing / 5)
+                risk_score += min(35, days_since_last_filing / 3)
 
         # ── Signal 3: Consecutive late / missed filings ───────────────────────
         if taxpayer.consecutive_late_filings >= self.LATE_FILING_STREAK_THRESHOLD:
@@ -67,7 +67,7 @@ class MissingTraderDetector(BaseDetector):
                 "count": taxpayer.consecutive_late_filings,
                 "threshold": self.LATE_FILING_STREAK_THRESHOLD,
             }
-            risk_score += min(20, taxpayer.consecutive_late_filings * 5)
+            risk_score += min(35, taxpayer.consecutive_late_filings * 10)
 
         # ── Signal 4: Output VAT declared by counter-parties but not by trader ─
         # Sum VAT amounts where buyer claims input credit from this seller

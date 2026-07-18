@@ -1,0 +1,62 @@
+{
+  "roc_auc": 1.0,
+  "avg_precision": 1.0,
+  "f1_fraud": 0.0,
+  "recall_fraud": 0.0,
+  "precision_fraud": 0.0,
+  "threshold": 0.1,
+  "confusion_matrix": [
+    [
+      750,
+      0
+    ],
+    [
+      0,
+      600
+    ]
+  ],
+  "top_10_features": [
+    [
+      "payment_days",
+      0.21601013880800454
+    ],
+    [
+      "seller_buyer_count",
+      0.138053793480196
+    ],
+    [
+      "seller_total_invoices",
+      0.12029379678512703
+    ],
+    [
+      "seller_consecutive_late_filings",
+      0.09057533386570989
+    ],
+    [
+      "seller_mean_net",
+      0.08076323579703555
+    ],
+    [
+      "seller_std_net",
+      0.0703631076653423
+    ],
+    [
+      "declaration_mismatch",
+      0.048967530736680406
+    ],
+    [
+      "log_seller_age_days",
+      0.03711907087603356
+    ],
+    [
+      "is_cross_border",
+      0.025301444958451137
+    ],
+    [
+      "seller_cross_border_ratio",
+      0.025010960233705255
+    ]
+  ],
+  "dataset_size": 9000,
+  "fraud_ratio": 0.4444444444444444
+}
